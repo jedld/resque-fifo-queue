@@ -16,9 +16,9 @@ module Resque
 
         def dump_dht
           slots = redis_client.lrange 'queue_dht', 0, -1
-          slots.each_with_index do |slot, index|
+          slots.each_with_index.collect do |slot, index|
             slice, queue = slot.split('#')
-            [index, slice, queue]
+            [slice.to_i, queue]
           end
         end
 

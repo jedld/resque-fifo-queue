@@ -8,7 +8,7 @@ class TestJob
 end
 
 RSpec.describe Resque::Fifo::Queue::Manager do
-  before :each do
+  before do
     srand(67809)
   end
 
@@ -46,7 +46,8 @@ RSpec.describe Resque::Fifo::Queue::Manager do
 
   context "workers" do
     before do
-      @queue_name = "fifo-#{SecureRandom.hex(10)}"
+      rand_name = rand(0..2**32).to_s
+      @queue_name = "fifo-#{Digest::MD5.hexdigest(rand_name)}"
       @worker = Resque::Worker.new(@queue_name)
       @worker.register_worker
       manager.update_workers
@@ -59,13 +60,14 @@ RSpec.describe Resque::Fifo::Queue::Manager do
 
     context ".update_workers" do
       it "creates a random queue" do
-        expect(manager.dump_dht).to eq ["2656341485##{@queue_name}"]
+        expect(manager.dump_dht).to eq [[2854829645, "fifo-d9f2e430334150d375cd1a6491b07235"]]
       end
 
       context "multiple workers" do
         before do
           @queue_names = []
           @workers = []
+          srand(67809)
 
           3.times do |i|
             rand_name = rand(0..2**32).to_s
@@ -79,20 +81,21 @@ RSpec.describe Resque::Fifo::Queue::Manager do
         end
 
         it "creates a random queue" do
+          dht = manager.dump_dht
           expected = [
-            "419497541##{@queue_names[0]}",
-            "2656341485##{@queue_name}",
-            "2854829645##{@queue_names[2]}",
-            "4097318294##{@queue_names[1]}",
-            ]
+            [ 419497541, dht[0][1]],
+            [ 2668661237, dht[1][1]],
+            [ 2854829645, dht[2][1]],
+            [ 3633962356, dht[3][1]],
+          ]
 
           expect(manager.dump_dht).to eq expected
         end
 
         it "enqueueing assigns to one of the queues" do
           manager.enqueue("key1", TestJob, {})
-          expect(manager.dump_queues).to eq({})
-          expect(manager.dump_queues[@queue_name]).to eq(
+          dht = manager.dump_dht
+          expect(manager.dump_queues[dht[3][1]]).to eq(
             "args" => {},
             "class" => "TestJob",
             "fifo_key" => "key1"
