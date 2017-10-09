@@ -9,9 +9,9 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Joseph Emmanuel Dayo"]
   spec.email         = ["joseph.dayo@gmail.com"]
 
-  spec.summary       = %q{TODO: Write a short summary, because Rubygems requires one.}
-  spec.description   = %q{TODO: Write a longer description or delete this line.}
-  spec.homepage      = "TODO: Put your gem's website or public repo URL here."
+  spec.summary       = %q{Implements a federated fifo queue with consistent hashing on top of resque}
+  spec.description   = %q{Implements a federated fifo queue with consistent hashing on top of resque}
+  spec.homepage      = "https://github.com/jedld/resque-fifo-queue"
   spec.license       = "MIT"
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'
@@ -33,4 +33,12 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.14"
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "rspec", "~> 3.0"
+  spec.add_development_dependency "byebug"
+  spec.add_dependency "redis"
+  spec.add_dependency "resque"
+  spec.add_dependency "redis-namespace"
+  spec.add_dependency "resque-scheduler"
+  spec.add_dependency "resque-pause"
+  spec.add_dependency "xxhash"
+  spec.add_dependency "redlock"
 end
