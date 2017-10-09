@@ -24,8 +24,16 @@ module Resque
 
         def dump_queues
           query_available_queues.collect do |queue|
-            [queue, Resque.peek(queue)]
+            [queue, Resque.peek(queue,0,0)]
           end.to_h
+        end
+
+        def dump_queues_sorted
+          queues = dump_queues
+          dht = dump_dht.collect do |item|
+            _slice, queue = item
+            queues[queue]
+          end
         end
 
         def update_workers
@@ -45,9 +53,8 @@ module Resque
             end
 
             added_queues = available_queues.each do |queue|
-              slots = redis_client.lrange('queue_dht', 0, -1)
               if !current_queues.include?(queue)
-                insert_slot(slots, queue)
+                insert_slot(queue)
               log "queue #{queue} was added."
               end
             end
@@ -64,12 +71,17 @@ module Resque
           puts message
         end
 
-        def insert_slot(slots, queue)
-          new_slice = rand(0..2**32) # generate random 32-bit integer
-          queue_str = "#{new_slice}##{queue}"
+        def insert_slot(queue)
+          new_slice = XXhash.xxh32(rand(0..2**32).to_s) # generate random 32-bit integer
+          insert_queue_to_slice new_slice, queue
+        end
+
+        def insert_queue_to_slice(slice, queue)
+          queue_str = "#{slice}##{queue}"
+          slots = redis_client.lrange('queue_dht', 0, -1)
           slots.each do |slot|
-            slice, queue = slot.split('#')
-            if new_slice < slice.to_i
+            slot_slice, queue = slot.split('#')
+            if slice < slot_slice.to_i
               redis_client.linsert('queue_dht', 'BEFORE', slot, queue_str)
               return
             end
@@ -113,7 +125,7 @@ module Resque
 
           return "#{@queue_prefix}-pending" if slots.empty?
 
-          slots.each do |slot|
+          slots.reverse.each do |slot|
             slice, queue = slot.split('#')
             if index > slice.to_i
               return queue
