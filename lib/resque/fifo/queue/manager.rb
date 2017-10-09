@@ -5,7 +5,7 @@ module Resque
         DLM_TTL = 30000
         attr_accessor :queue_prefix
 
-        def initialize(queue_prefix = 'action')
+        def initialize(queue_prefix = 'fifo')
           @queue_prefix = queue_prefix
         end
 
@@ -22,30 +22,37 @@ module Resque
           end
         end
 
+        def dump_queues
+          query_available_queues.collect do |queue|
+            [queue, Resque.peek(queue)]
+          end.to_h
+        end
+
         def update_workers
           redlock.lock!("action_queue_lock", DLM_TTL) do |lock_info|
             available_queues = query_available_queues
             # query removed workers
             slots = redis_client.lrange 'queue_dht', 0, -1
-            current_queues = slots.map { |slot| slot.split('#').second }
+            current_queues = slots.map { |slot| slot.split('#')[1] }
 
             slots.each_with_index do |slot, index|
               slice, queue = slot.split('#')
               if !available_queues.include?(queue)
-                Rails.logger.info "queue #{queue} removed."
+                log "queue #{queue} removed."
                 transfer_queues(queue, 'pending')
                 redis_client.lrem 'queue_dht', -1, slot
               end
             end
-            slots = redis_client.lrange('queue_dht', 0, -1)
+
             added_queues = available_queues.each do |queue|
+              slots = redis_client.lrange('queue_dht', 0, -1)
               if !current_queues.include?(queue)
                 insert_slot(slots, queue)
-                Rails.logger.info "queue #{queue} was added."
+              log "queue #{queue} was added."
               end
             end
 
-            Rails.logger.info("reinserting items from pending")
+            log("reinserting items from pending")
 
             reinsert_pending_items("#{@queue_prefix}-pending")
           end
@@ -53,12 +60,16 @@ module Resque
 
         private
 
+        def log(message)
+          puts message
+        end
+
         def insert_slot(slots, queue)
           new_slice = rand(0..2**32) # generate random 32-bit integer
           queue_str = "#{new_slice}##{queue}"
           slots.each do |slot|
             slice, queue = slot.split('#')
-            if new_slice < slice
+            if new_slice < slice.to_i
               redis_client.linsert('queue_dht', 'BEFORE', slot, queue_str)
               return
             end
@@ -89,7 +100,7 @@ module Resque
         end
 
         def redlock
-          Redlock::Client.new [Rails.application.redis_host]
+          Redlock::Client.new [$redis]
         end
 
         def compute_index(key)
@@ -109,13 +120,15 @@ module Resque
             end
           end
 
-          return slots.last.split('#').second
+          _slice, queue_name = slots.last.split('#')
+
+          queue_name
         end
 
         def query_available_queues
           Resque.workers.collect do |worker|
             queue_name = worker.queues.first
-            queue_name.starts_with?("#{@queue_prefix}-") ? queue_name : nil
+            queue_name.start_with?("#{@queue_prefix}-") ? queue_name : nil
           end.compact
         end
       end
