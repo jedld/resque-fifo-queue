@@ -78,14 +78,28 @@ module Resque
 
         def insert_queue_to_slice(slice, queue)
           queue_str = "#{slice}##{queue}"
+          log "insert #{queue} -> #{slice}"
           slots = redis_client.lrange('queue_dht', 0, -1)
+
+          if slots.empty?
+            redis_client.rpush('queue_dht', queue_str)
+            return
+          end
+
+          _b_slice, prev_queue = slots.last.split('#')
           slots.each do |slot|
-            slot_slice, queue = slot.split('#')
+            slot_slice, s_queue = slot.split('#')
             if slice < slot_slice.to_i
+              transfer_queues(prev_queue, "#{@queue_prefix}-pending")
               redis_client.linsert('queue_dht', 'BEFORE', slot, queue_str)
               return
             end
+
+            prev_queue = s_queue
           end
+
+          _slot_slice, s_queue = slots.last.split('#')
+          transfer_queues(s_queue, "#{@queue_prefix}-pending")
           redis_client.rpush('queue_dht', queue_str)
         end
 
@@ -95,12 +109,13 @@ module Resque
             slot = r.lpop "queue:#{from_queue}"
             queue_json = JSON.parse(slot)
             target_queue = compute_queue_name(queue_json['fifo_key'])
-            Rails.logger.info "#{from_queue} -> #{target_queue}"
-            redis_client.lpush(target_queue, slot)
+            log "#{queue_json['fifo_key']}: #{from_queue} -> #{target_queue}"
+            r.lpush("queue:#{target_queue}", slot)
           end
         end
 
         def transfer_queues(from_queue, to_queue)
+          log "transfer: #{from_queue} -> #{to_queue}"
           r = Resque.redis
           r.llen("queue:#{from_queue}").times do
             r.rpoplpush("queue:#{from_queue}", "queue:#{to_queue}")
