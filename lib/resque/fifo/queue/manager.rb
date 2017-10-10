@@ -106,7 +106,7 @@ module Resque
         def reinsert_pending_items(from_queue)
           r = Resque.redis
           r.llen("queue:#{from_queue}").times do
-            slot = r.lpop "queue:#{from_queue}"
+            slot = r.rpop "queue:#{from_queue}"
             queue_json = JSON.parse(slot)
             target_queue = compute_queue_name(queue_json['fifo_key'])
             log "#{queue_json['fifo_key']}: #{from_queue} -> #{target_queue}"
