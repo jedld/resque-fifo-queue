@@ -1,0 +1,1 @@
+require 'resque/fifo/queue'

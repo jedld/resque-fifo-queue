@@ -1,10 +1,4 @@
-$LOAD_PATH.unshift File.dirname(__FILE__) + '/../../lib'
-
 task "resque:fifo-worker" => :environment do
-  Resque.before_first_fork do
-    puts "Call me once before the worker forks the first time"
-  end
-
   prefix = ENV['PREFIX'] || 'fifo'
   worker = Resque::Plugins::Fifo::Worker.new("#{prefix}-#{SecureRandom.hex(10)}")
   worker.prepare

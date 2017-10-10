@@ -1,11 +1,11 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'resque/fifo/queue/version'
+require 'resque/plugins/fifo/queue/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "resque-fifo-queue"
-  spec.version       = Resque::Fifo::Queue::VERSION
+  spec.version       = Resque::Plugins::Fifo::Queue::VERSION
   spec.authors       = ["Joseph Emmanuel Dayo"]
   spec.email         = ["joseph.dayo@gmail.com"]
 
@@ -36,7 +36,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "byebug"
   spec.add_dependency "redis"
   spec.add_dependency "resque"
-  spec.add_dependency "redis-namespace"
   spec.add_dependency "resque-scheduler"
   spec.add_dependency "resque-pause"
   spec.add_dependency "xxhash"

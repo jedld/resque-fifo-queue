@@ -7,16 +7,17 @@ class TestJob
   end
 end
 
-RSpec.describe Resque::Fifo::Queue::Manager do
+RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
   before do
     srand(67809)
   end
 
   it "has a version number" do
-    expect(Resque::Fifo::Queue::VERSION).not_to be nil
+    Resque::Plugin.lint(Resque::Plugins::Fifo)
+    expect(Resque::Plugins::Fifo::Queue::VERSION).not_to be nil
   end
 
-  let(:manager) { Resque::Fifo::Queue::Manager.new }
+  let(:manager) { Resque::Plugins::Fifo::Queue::Manager.new }
 
   context "#dump_dht" do
     it "dumps queue dictionary" do
