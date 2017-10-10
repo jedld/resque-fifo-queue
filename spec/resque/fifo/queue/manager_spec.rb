@@ -30,7 +30,7 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
       manager.enqueue("key1", TestJob, {})
       expect(Resque.queues).to eq ["fifo-pending"]
       expect(Resque.peek('fifo-pending')).to eq(
-        "args" => {},
+        "args" => [{}],
         "class" => "TestJob",
         "fifo_key" => "key1",
       )
@@ -95,17 +95,17 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
 
         it "enqueueing assigns to one of the queues" do
           manager.enqueue("key1", TestJob, {})
-          manager.enqueue("key1", TestJob, {args: 1})
+          manager.enqueue("key1", TestJob, 1)
 
-          manager.enqueue("key4", TestJob, {args: 2})
+          manager.enqueue("key4", TestJob, 2)
           sorted_queues = manager.dump_queues_sorted
 
           expect(sorted_queues).to eq(
           [
-            [{"class"=>"TestJob", "args"=>{}, "fifo_key"=>"key1"},
-             {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"}],
+            [{"class"=>"TestJob", "args"=>[{}], "fifo_key"=>"key1"},
+             {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1"}],
 
-            [{"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key4"}],
+            [{"class"=>"TestJob", "args"=>[2], "fifo_key"=>"key4"}],
 
             [],
 
@@ -115,10 +115,10 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
         context "consistent hashing test" do
           before do
             30.times do |index|
-              manager.enqueue("key#{index}", TestJob, {args: 1})
+              Resque::Plugins::Fifo::Queue::Manager.enqueue_to("key#{index}", TestJob, 1)
             end
 
-            manager.enqueue("key14", TestJob, {args: 2})
+            Resque::Plugins::Fifo::Queue::Manager.enqueue_to("key14", TestJob, 2)
 
             dht = manager.dump_dht
 
@@ -132,43 +132,43 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
               expect(@queue_contents).to eq(
                 [
                   # slice 48850411
-                  [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key22"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key27"}],
+                  [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key22"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key27"}],
 
                   # slice 621716388
-                 [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key4"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key5"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key6"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key9"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key12"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key13"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key25"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key29"}],
+                 [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key4"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key5"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key6"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key9"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key12"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key13"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key25"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key29"}],
 
                   # slice 1602258586
-                 [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key0"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key2"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key3"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key7"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key8"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key10"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key11"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key15"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key16"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key17"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key18"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key19"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key20"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key21"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key24"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key26"}],
+                 [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key3"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key7"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key8"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key10"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key11"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key15"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key16"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key17"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key18"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key19"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key20"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key21"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key24"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key26"}],
 
                   #slice 3829916704
-                 [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key14"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key23"},
-                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key28"},
-                  {"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key14"}]]
+                 [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key14"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key23"},
+                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key28"},
+                  {"class"=>"TestJob", "args"=>[2], "fifo_key"=>"key14"}]]
                 )
             end
 
@@ -180,62 +180,62 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
               manager.send(:insert_queue_to_slice, 2602258586, queue_name)
 
               expect(Resque.peek("fifo-pending",0,0)).to eq(
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key0"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key2"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key3"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key7"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key8"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key10"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key11"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key15"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key16"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key17"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key18"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key19"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key20"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key21"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key24"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key26"}]
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key3"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key7"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key8"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key10"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key11"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key15"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key16"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key17"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key18"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key19"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key20"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key21"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key24"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key26"}]
               )
 
               manager.send(:reinsert_pending_items, "fifo-pending")
 
               expect(manager.dump_queues_sorted).to eq([
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key22"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key27"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key22"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key27"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key4"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key5"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key6"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key9"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key12"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key13"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key25"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key29"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key4"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key5"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key6"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key9"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key12"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key13"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key25"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key29"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key2"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key3"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key10"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key15"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key17"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key18"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key19"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key24"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key3"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key10"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key15"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key17"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key18"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key19"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key24"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key0"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key7"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key8"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key11"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key16"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key20"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key21"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key26"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key7"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key8"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key11"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key16"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key20"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key21"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key26"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key14"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key23"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key28"},
-                 {"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key14"}]]
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key14"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key23"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key28"},
+                 {"class"=>"TestJob", "args"=>[2], "fifo_key"=>"key14"}]]
               )
             end
 
@@ -248,41 +248,41 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
               manager.send(:reinsert_pending_items, "fifo-pending")
 
               expect(manager.dump_queues_sorted).to eq([
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key14"},
-                 {"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key14"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key14"},
+                 {"class"=>"TestJob", "args"=>[2], "fifo_key"=>"key14"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key22"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key27"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key22"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key27"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key4"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key5"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key6"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key9"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key12"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key13"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key25"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key29"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key4"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key5"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key6"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key9"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key12"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key13"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key25"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key29"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key0"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key2"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key3"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key7"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key8"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key10"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key11"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key15"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key16"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key17"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key18"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key19"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key20"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key21"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key24"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key26"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key3"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key7"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key8"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key10"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key11"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key15"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key16"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key17"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key18"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key19"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key20"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key21"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key24"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key26"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key23"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key28"}]
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key23"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key28"}]
                 ])
             end
 
@@ -296,45 +296,45 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
 
               expect(manager.dump_queues_sorted).to eq([
                 # slice 48850411
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key22"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key27"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key22"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key27"}],
 
                 # slice 621716388
-               [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key4"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key5"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key6"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key9"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key12"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key13"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key25"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key29"}],
+               [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key4"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key5"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key6"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key9"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key12"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key13"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key25"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key29"}],
 
                 # slice 1602258586
-               [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key0"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key2"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key3"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key7"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key8"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key10"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key11"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key15"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key16"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key17"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key18"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key19"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key20"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key21"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key24"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key26"}],
+               [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key3"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key7"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key8"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key10"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key11"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key15"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key16"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key17"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key18"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key19"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key20"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key21"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key24"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key26"}],
 
                 # slice 3829916704
-               [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key23"},
-                {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key28"}],
+               [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key23"},
+                {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key28"}],
 
                # slice 4829916704
-               [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key14"},
-                {"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key14"}]
+               [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key14"},
+                {"class"=>"TestJob", "args"=>[2], "fifo_key"=>"key14"}]
               ])
             end
           end
@@ -349,39 +349,39 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
               manager.update_workers
 
               expect(manager.dump_queues_sorted).to eq([
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key4"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key5"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key6"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key9"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key12"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key13"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key25"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key29"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key4"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key5"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key6"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key9"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key12"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key13"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key25"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key29"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key0"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key2"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key3"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key7"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key8"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key10"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key11"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key15"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key16"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key17"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key18"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key19"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key20"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key21"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key24"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key26"}],
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key3"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key7"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key8"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key10"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key11"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key15"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key16"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key17"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key18"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key19"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key20"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key21"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key24"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key26"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key14"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key23"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key28"},
-                 {"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key14"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key22"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key27"},]
+                [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key14"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key23"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key28"},
+                 {"class"=>"TestJob", "args"=>[2], "fifo_key"=>"key14"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key22"},
+                 {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key27"},]
               ])
             end
           end

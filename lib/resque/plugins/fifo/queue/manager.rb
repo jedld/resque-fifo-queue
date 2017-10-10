@@ -16,11 +16,40 @@ module Resque
             "fifo-queue-lookup-#{@queue_prefix}"
           end
 
-          def enqueue(key, klass, args = {})
+          def enqueue(key, klass, *args)
             redlock.lock!("fifo_queue_lock-#{@queue_prefix}", DLM_TTL) do |_lock_info|
               queue = compute_queue_name(key)
-              Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
+              Resque.validate(klass, queue)
+              if Resque.inline?
+                # Instantiating a Resque::Job and calling perform on it so callbacks run
+                # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
+                Resque::Job.new(:inline, {'class' => klass, 'args' => decode(encode(args)), 'fifo_key' => key}).perform
+              else
+                Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
+              end
             end
+          end
+
+          def self.enqueue_to(key, klass, *args)
+            enqueue_topic('fifo', key, klass, *args)
+          end
+
+          def self.enqueue_topic(topic, key, klass, *args)
+            # Perform before_enqueue hooks. Don't perform enqueue if any hook returns false
+            before_hooks = Plugin.before_enqueue_hooks(klass).collect do |hook|
+              klass.send(hook, *args)
+            end
+
+            return nil if before_hooks.any? { |result| result == false }
+
+            manager = Resque::Plugins::Fifo::Queue::Manager.new(topic)
+            manager.enqueue(key, klass, *args)
+
+            Plugin.after_enqueue_hooks(klass).each do |hook|
+              klass.send(hook, *args)
+            end
+
+            return true
           end
 
           def dump_dht
