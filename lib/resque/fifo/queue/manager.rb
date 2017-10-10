@@ -22,6 +22,18 @@ module Resque
           end
         end
 
+        def dump_queue_names
+          dump_dht.collect { |item| item[1] }
+        end
+
+        def worker_for_queue(queue_name)
+          Resque.workers.collect do |worker|
+            w_queue_name = worker.queues.first
+            return worker if w_queue_name == queue_name
+          end.compact
+          nil
+        end
+
         def dump_queues
           query_available_queues.collect do |queue|
             [queue, Resque.peek(queue,0,0)]
@@ -31,8 +43,8 @@ module Resque
         def dump_queues_sorted
           queues = dump_queues
           dht = dump_dht.collect do |item|
-            _slice, queue = item
-            queues[queue]
+            _slice, queue_name = item
+            queues[queue_name]
           end
         end
 
@@ -43,13 +55,16 @@ module Resque
             slots = redis_client.lrange 'queue_dht', 0, -1
             current_queues = slots.map { |slot| slot.split('#')[1] }
 
-            slots.each_with_index do |slot, index|
-              slice, queue = slot.split('#')
-              if !available_queues.include?(queue)
-                log "queue #{queue} removed."
-                transfer_queues(queue, 'pending')
-                redis_client.lrem 'queue_dht', -1, slot
-              end
+            remove_list = slots.select do |slot|
+              _slice, queue = slot.split('#')
+              !available_queues.include?(queue)
+            end
+
+            remove_list.each do |slot|
+              _slice, queue = slot.split('#')
+              log "queue #{queue} removed."
+              transfer_queues(queue, "#{@queue_prefix}-pending")
+              redis_client.lrem 'queue_dht', -1, slot
             end
 
             added_queues = available_queues.each do |queue|
@@ -68,7 +83,7 @@ module Resque
         private
 
         def log(message)
-          puts message
+          # puts message
         end
 
         def insert_slot(queue)
