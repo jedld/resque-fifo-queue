@@ -374,13 +374,13 @@ RSpec.describe Resque::Fifo::Queue::Manager do
                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key24"},
                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key26"}],
 
-                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key22"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key27"},
-                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key14"},
+                [{"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key14"},
                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key23"},
                  {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key28"},
-                 {"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key14"}]
+                 {"class"=>"TestJob", "args"=>{"args"=>2}, "fifo_key"=>"key14"},
+                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key1"},
+                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key22"},
+                 {"class"=>"TestJob", "args"=>{"args"=>1}, "fifo_key"=>"key27"},]
               ])
             end
           end

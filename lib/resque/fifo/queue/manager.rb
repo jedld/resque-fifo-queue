@@ -1,3 +1,5 @@
+require 'set'
+
 module Resque
   module Fifo
     module Queue
@@ -10,8 +12,10 @@ module Resque
         end
 
         def enqueue(key, klass, args = {})
-          queue = compute_queue_name(key)
-          Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
+          redlock.lock!("fifo_queue_lock-#{@queue_prefix}", DLM_TTL) do |_lock_info|
+            queue = compute_queue_name(key)
+            Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
+          end
         end
 
         def dump_dht
@@ -49,12 +53,15 @@ module Resque
         end
 
         def update_workers
-          redlock.lock!("action_queue_lock", DLM_TTL) do |lock_info|
-            available_queues = query_available_queues
-            # query removed workers
-            slots = redis_client.lrange 'queue_dht', 0, -1
-            current_queues = slots.map { |slot| slot.split('#')[1] }
+          available_queues = query_available_queues
+          # query removed workers
+          slots = redis_client.lrange 'queue_dht', 0, -1
+          current_queues = slots.map { |slot| slot.split('#')[1] }
 
+          # no change don't update
+          return if available_queues.sort == current_queues.sort
+
+          redlock.lock!("fifo_queue_lock-#{@queue_prefix}", DLM_TTL) do |_lock_info|
             remove_list = slots.select do |slot|
               _slice, queue = slot.split('#')
               !available_queues.include?(queue)
@@ -63,14 +70,16 @@ module Resque
             remove_list.each do |slot|
               _slice, queue = slot.split('#')
               log "queue #{queue} removed."
-              transfer_queues(queue, "#{@queue_prefix}-pending")
-              redis_client.lrem 'queue_dht', -1, slot
+              redlock.lock!("queue_lock-#{queue}", DLM_TTL) do |_lock_info|
+                transfer_queues(queue, "#{@queue_prefix}-pending")
+                redis_client.lrem 'queue_dht', -1, slot
+              end
             end
 
             added_queues = available_queues.each do |queue|
               if !current_queues.include?(queue)
                 insert_slot(queue)
-              log "queue #{queue} was added."
+                log "queue #{queue} was added."
               end
             end
 
@@ -105,8 +114,12 @@ module Resque
           slots.each do |slot|
             slot_slice, s_queue = slot.split('#')
             if slice < slot_slice.to_i
-              transfer_queues(prev_queue, "#{@queue_prefix}-pending")
-              redis_client.linsert('queue_dht', 'BEFORE', slot, queue_str)
+              redlock.lock!("queue_lock-#{prev_queue}", DLM_TTL) do |_lock_info|
+                pause_queues([prev_queue]) do
+                  redis_client.linsert('queue_dht', 'BEFORE', slot, queue_str)
+                  transfer_queues(prev_queue, "#{@queue_prefix}-pending")
+                end
+              end
               return
             end
 
@@ -114,35 +127,51 @@ module Resque
           end
 
           _slot_slice, s_queue = slots.last.split('#')
-          transfer_queues(s_queue, "#{@queue_prefix}-pending")
-          redis_client.rpush('queue_dht', queue_str)
+          pause_queues([s_queue]) do
+            transfer_queues(s_queue, "#{@queue_prefix}-pending")
+            redis_client.rpush('queue_dht', queue_str)
+          end
         end
 
         def reinsert_pending_items(from_queue)
-          r = Resque.redis
-          r.llen("queue:#{from_queue}").times do
-            slot = r.rpop "queue:#{from_queue}"
+          redis_client.llen("queue:#{from_queue}").times do
+            slot = redis_client.lpop "queue:#{from_queue}"
             queue_json = JSON.parse(slot)
             target_queue = compute_queue_name(queue_json['fifo_key'])
             log "#{queue_json['fifo_key']}: #{from_queue} -> #{target_queue}"
-            r.lpush("queue:#{target_queue}", slot)
+            redis_client.rpush("queue:#{target_queue}", slot)
+          end
+        end
+
+        def pause_queues(queue_names = [], &block)
+          begin
+            queue_names.each do |queue_name|
+              worker = worker_for_queue(queue_name)
+              worker.pause_processing if worker
+            end
+
+            block.()
+          ensure
+            queue_names.each do |queue_name|
+              worker = worker_for_queue(queue_name)
+              worker.unpause_processing if worker
+            end
           end
         end
 
         def transfer_queues(from_queue, to_queue)
           log "transfer: #{from_queue} -> #{to_queue}"
-          r = Resque.redis
-          r.llen("queue:#{from_queue}").times do
-            r.rpoplpush("queue:#{from_queue}", "queue:#{to_queue}")
+          redis_client.llen("queue:#{from_queue}").times do
+            redis_client.rpoplpush("queue:#{from_queue}", "queue:#{to_queue}")
           end
         end
 
         def redis_client
-          @redis ||= Redis::Namespace.new(:action_queue, :redis => $redis)
+          @redis ||= Resque.redis
         end
 
         def redlock
-          Redlock::Client.new [$redis]
+          Redlock::Client.new [redis_client]
         end
 
         def compute_index(key)
