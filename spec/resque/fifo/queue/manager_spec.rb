@@ -48,8 +48,7 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
   context "workers" do
     before do
       rand_name = rand(0..2**32).to_s
-      @queue_name = "fifo-#{Digest::MD5.hexdigest(rand_name)}"
-      @worker = Resque::Worker.new(@queue_name)
+      @worker = Resque::Plugins::Fifo::Worker.new
       @worker.register_worker
       manager.update_workers
     end

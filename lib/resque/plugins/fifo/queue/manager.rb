@@ -16,8 +16,12 @@ module Resque
             "fifo-queue-lookup-#{@queue_prefix}"
           end
 
+          def queue_prefix
+            "#{Resque::Plugins::Fifo::WORKER_QUEUE_NAMESPACE}-#{@queue}"
+          end
+
           def enqueue(key, klass, *args)
-            redlock.lock!("fifo_queue_lock-#{@queue_prefix}", DLM_TTL) do |_lock_info|
+            redlock.lock!("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |_lock_info|
               queue = compute_queue_name(key)
               Resque.validate(klass, queue)
               if Resque.inline?
@@ -95,7 +99,7 @@ module Resque
             # no change don't update
             return if available_queues.sort == current_queues.sort
 
-            redlock.lock!("fifo_queue_lock-#{@queue_prefix}", DLM_TTL) do |_lock_info|
+            redlock.lock!("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |_lock_info|
               remove_list = slots.select do |slot|
                 _slice, queue = slot.split('#')
                 !available_queues.include?(queue)
@@ -105,7 +109,7 @@ module Resque
                 _slice, queue = slot.split('#')
                 log "queue #{queue} removed."
                 redlock.lock!("queue_lock-#{queue}", DLM_TTL) do |_lock_info|
-                  transfer_queues(queue, "#{@queue_prefix}-pending")
+                  transfer_queues(queue, "#{queue_prefix}-pending")
                   redis_client.lrem fifo_hash_table_name, -1, slot
                 end
               end
@@ -119,7 +123,7 @@ module Resque
 
               log("reinserting items from pending")
 
-              reinsert_pending_items("#{@queue_prefix}-pending")
+              reinsert_pending_items("#{queue_prefix}-pending")
             end
           end
 
@@ -151,7 +155,7 @@ module Resque
                 redlock.lock!("queue_lock-#{prev_queue}", DLM_TTL) do |_lock_info|
                   pause_queues([prev_queue]) do
                     redis_client.linsert(fifo_hash_table_name, 'BEFORE', slot, queue_str)
-                    transfer_queues(prev_queue, "#{@queue_prefix}-pending")
+                    transfer_queues(prev_queue, "#{queue_prefix}-pending")
                   end
                 end
                 return
@@ -162,7 +166,7 @@ module Resque
 
             _slot_slice, s_queue = slots.last.split('#')
             pause_queues([s_queue]) do
-              transfer_queues(s_queue, "#{@queue_prefix}-pending")
+              transfer_queues(s_queue, "#{queue_prefix}-pending")
               redis_client.rpush(fifo_hash_table_name, queue_str)
             end
           end
@@ -233,7 +237,7 @@ module Resque
           def query_available_queues
             Resque.workers.collect do |worker|
               queue_name = worker.queues.first
-              queue_name.start_with?("#{@queue_prefix}-") ? queue_name : nil
+              queue_name.start_with?("#{queue_prefix}-") ? queue_name : nil
             end.compact
           end
         end
