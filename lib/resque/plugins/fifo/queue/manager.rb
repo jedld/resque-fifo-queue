@@ -43,8 +43,23 @@ module Resque
           end
 
           def enqueue(key, klass, *args)
-            redlock.lock!("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |_lock_info|
-              queue = compute_queue_name(key)
+              queue = redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
+                if locked
+                  if pending_total == 0
+                    compute_queue_name(key)
+                  else
+                    if redis_client.llen(fifo_hash_table_name) > 0
+                      # pending queue still has items, summon a worker to fix this
+
+                      Resque.push(:high, :class => Resque::Plugins::Fifo::Queue::DrainWorker)
+                    end
+                      pending_queue_name
+                  end
+                else
+                  pending_queue_name
+                end
+              end
+
               redis_client.incr "queue-stats-#{queue}"
               Resque.validate(klass, queue)
               if Resque.inline?
@@ -54,7 +69,7 @@ module Resque
               else
                 Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
               end
-            end
+
           end
 
           def self.enqueue_to(key, klass, *args)
@@ -100,7 +115,7 @@ module Resque
           end
 
           def pending_total
-            redis_client.llen pending_queue_name
+            redis_client.llen "queue:#{pending_queue_name}"
           end
 
           def dump_queue_names
@@ -137,8 +152,7 @@ module Resque
             slots.collect do |slot, index|
               slice, queue = slot.split('#')
               worker = worker_for_queue(queue)
-              failure_count = Resque.all_queues.include?(queue) ? Resque::Failure.count(queue) : 0
-              [slice, queue, worker.hostname, failure_count, get_processed_count(queue), Resque.peek(queue,0,0).size ]
+              [slice, queue, worker ? worker.hostname : '?', get_processed_count(queue), Resque.peek(queue,0,0).size ]
             end
           end
 
@@ -155,42 +169,44 @@ module Resque
           end
 
           def update_workers
-            available_queues = query_available_queues
             # query removed workers
-            redlock.lock!("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |_lock_info|
-              slots = redis_client.lrange fifo_hash_table_name, 0, -1
+            redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
+              if locked
+                available_queues = query_available_queues
+                slots = redis_client.lrange fifo_hash_table_name, 0, -1
 
-              current_queues = slots.map { |slot| slot.split('#')[1] }.uniq
+                current_queues = slots.map { |slot| slot.split('#')[1] }.uniq
 
-              # no change don't update
-              return if available_queues.sort == current_queues.sort
+                # no change don't update
+                return if available_queues.sort == current_queues.sort
 
 
-              remove_list = slots.select do |slot|
-                _slice, queue = slot.split('#')
-                !available_queues.include?(queue)
-              end
+                remove_list = slots.select do |slot|
+                  _slice, queue = slot.split('#')
+                  !available_queues.include?(queue)
+                end
 
-              remove_list.each do |slot|
-                _slice, queue = slot.split('#')
-                log "queue #{queue} removed."
-                redlock.lock!("queue_lock-#{queue}", DLM_TTL) do |_lock_info|
+                remove_list.each do |slot|
+                  _slice, queue = slot.split('#')
+                  log "queue #{queue} removed."
                   transfer_queues(queue, pending_queue_name)
                   redis_client.lrem fifo_hash_table_name, -1, slot
                   redis_client.del "queue-stats-#{queue}"
                 end
-              end
 
-              added_queues = available_queues.each do |queue|
-                if !current_queues.include?(queue)
-                  insert_slot(queue)
-                  log "queue #{queue} was added."
+                added_queues = available_queues.each do |queue|
+                  if !current_queues.include?(queue)
+                    insert_slot(queue)
+                    log "queue #{queue} was added."
+                  end
                 end
+
+                log("reinserting items from pending")
+
+                reinsert_pending_items(pending_queue_name)
+              else
+                log("unable to lock DHT.")
               end
-
-              log("reinserting items from pending")
-
-              reinsert_pending_items(pending_queue_name)
             end
           end
 
@@ -280,7 +296,12 @@ module Resque
           end
 
           def redlock
-            Redlock::Client.new [$redis]
+            Redlock::Client.new [$redis], {
+              retry_count:   30,
+              retry_delay:   1000, # milliseconds
+              retry_jitter:  100,  # milliseconds
+              redis_timeout: 1  # seconds
+            }
           end
 
           def compute_index(key)

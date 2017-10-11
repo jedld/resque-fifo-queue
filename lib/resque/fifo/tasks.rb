@@ -1,3 +1,5 @@
+require 'resque/fifo/queue'
+
 task "resque:fifo-worker" => :environment do
   prefix = ENV['PREFIX'] || 'fifo'
   worker = Resque::Plugins::Fifo::Worker.new

@@ -4,6 +4,7 @@ module Resque
   module Plugins
     module Fifo
       class Worker < Resque::Worker
+        UPDATE_DELAY = 10
         attr_accessor :main_queue_name
 
         def queues=(queues)
@@ -23,6 +24,7 @@ module Resque
           super
 
           puts "Fifo Startup - Updating worker list"
+          sleep UPDATE_DELAY
           manager.update_workers
         end
 
