@@ -24,9 +24,28 @@ module Resque
             "#{queue_prefix}-pending"
           end
 
+          def compute_queue_name(key)
+            index = compute_index(key)
+            slots = redis_client.lrange fifo_hash_table_name, 0, -1
+
+            return pending_queue_name if slots.empty?
+
+            slots.reverse.each do |slot|
+              slice, queue = slot.split('#')
+              if index > slice.to_i
+                return queue
+              end
+            end
+
+            _slice, queue_name = slots.last.split('#')
+
+            queue_name
+          end
+
           def enqueue(key, klass, *args)
             redlock.lock!("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |_lock_info|
               queue = compute_queue_name(key)
+              redis_client.incr "queue-stats-#{queue}"
               Resque.validate(klass, queue)
               if Resque.inline?
                 # Instantiating a Resque::Job and calling perform on it so callbacks run
@@ -80,6 +99,10 @@ module Resque
             Resque.peek(pending_queue_name, 0, 0)
           end
 
+          def pending_total
+            redis_client.llen pending_queue_name
+          end
+
           def dump_queue_names
             dump_dht.collect { |item| item[1] }
           end
@@ -109,6 +132,20 @@ module Resque
             end
           end
 
+          def dump_queues_with_slices
+            slots = redis_client.lrange fifo_hash_table_name, 0, -1
+            slots.collect do |slot, index|
+              slice, queue = slot.split('#')
+              worker = worker_for_queue(queue)
+              failure_count = Resque.all_queues.include?(queue) ? Resque::Failure.count(queue) : 0
+              [slice, queue, worker.hostname, failure_count, get_processed_count(queue), Resque.peek(queue,0,0).size ]
+            end
+          end
+
+          def get_processed_count(queue)
+            redis_client.get("queue-stats-#{queue}") || 0
+          end
+
           def dump_queues_sorted
             queues = dump_queues
             dht = dump_dht.collect do |item|
@@ -120,13 +157,15 @@ module Resque
           def update_workers
             available_queues = query_available_queues
             # query removed workers
-            slots = redis_client.lrange fifo_hash_table_name, 0, -1
-            current_queues = slots.map { |slot| slot.split('#')[1] }
-
-            # no change don't update
-            return if available_queues.sort == current_queues.sort
-
             redlock.lock!("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |_lock_info|
+              slots = redis_client.lrange fifo_hash_table_name, 0, -1
+
+              current_queues = slots.map { |slot| slot.split('#')[1] }.uniq
+
+              # no change don't update
+              return if available_queues.sort == current_queues.sort
+
+
               remove_list = slots.select do |slot|
                 _slice, queue = slot.split('#')
                 !available_queues.include?(queue)
@@ -138,6 +177,7 @@ module Resque
                 redlock.lock!("queue_lock-#{queue}", DLM_TTL) do |_lock_info|
                   transfer_queues(queue, pending_queue_name)
                   redis_client.lrem fifo_hash_table_name, -1, slot
+                  redis_client.del "queue-stats-#{queue}"
                 end
               end
 
@@ -245,24 +285,6 @@ module Resque
 
           def compute_index(key)
             XXhash.xxh32(key)
-          end
-
-          def compute_queue_name(key)
-            index = compute_index(key)
-            slots = redis_client.lrange fifo_hash_table_name, 0, -1
-
-            return pending_queue_name if slots.empty?
-
-            slots.reverse.each do |slot|
-              slice, queue = slot.split('#')
-              if index > slice.to_i
-                return queue
-              end
-            end
-
-            _slice, queue_name = slots.last.split('#')
-
-            queue_name
           end
 
           def query_available_queues

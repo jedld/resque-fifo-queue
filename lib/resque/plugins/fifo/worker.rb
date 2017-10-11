@@ -26,8 +26,8 @@ module Resque
           manager.update_workers
         end
 
-        def unregister_worker
-          super
+        def unregister_worker(exception = nil)
+          super(exception)
 
           puts "Fifo Shutdown - Updating worker list"
           manager.update_workers

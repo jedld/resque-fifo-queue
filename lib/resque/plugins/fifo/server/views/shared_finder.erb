@@ -1,0 +1,21 @@
+<form method="POST" action="<%=u "/shared_finder" %>" >
+  <label for="key">Key</label>
+  <input id="key" type='text' name='key'/>
+  <input type='submit' name='' value='Find Shard' />
+</form>
+<% if @worker %>
+<table>
+  <thead>
+    <th>Queue Name</th>
+    <th>Host Name</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td><%= @queue_anme %></td>
+      <td><%= @worker.hostname %></td>
+    </tr>
+  </tbody>
+</table>
+<% else %>
+No worker found
+<% end %>

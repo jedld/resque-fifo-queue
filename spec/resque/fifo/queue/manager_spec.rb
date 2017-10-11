@@ -29,7 +29,7 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
   context "no workers" do
     it "sets to the pending queue" do
       manager.enqueue("key1", TestJob, {})
-      expect(Resque.queues).to eq [manager.pending_queue_name]
+      expect(Resque.all_queues).to eq [manager.pending_queue_name]
       expect(manager.peek_pending).to eq(
         [{"args" => [{}],
         "class" => "TestJob",

@@ -2,6 +2,8 @@ require 'resque'
 require 'resque/plugins/fifo/worker'
 require "resque/plugins/fifo/queue/version"
 require "resque/plugins/fifo/queue/manager"
+require "resque/plugins/fifo/server"
+require "resque/plugins/fifo/extensions"
 require "redis"
 require "redlock"
 require 'xxhash'

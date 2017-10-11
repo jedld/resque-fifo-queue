@@ -1,0 +1,46 @@
+<h1>Resque FIFO Managed Queues</h1>
+<p class="intro">
+  This page displays statistics about available FIFO Managed Queues and its partitioning information.
+</p>
+<form method="POST" action="<%=u "/shared_finder" %>" >
+  <label for="key">Key</label>
+  <input id="key" type='text' name='key'/>
+  <input type='submit' name='' value='Find Shard' />
+</form>
+<h1>Pending Queue Information</h1>
+<p> This queue contains, jobs that are to be resharded</p>
+<table>
+  <thead>
+    <th>Queue Name</th>
+    <th>Stored Jobs</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td><%= @manager.pending_queue_name %></td>
+      <td><%= @manager.pending_total %></td>
+  </tbody>
+</table>
+<h1 class='wi'> <%= @queue_with_slices.size %> worker instances</h1>
+<table>
+  <thead>
+    <th>Slice</th>
+    <th>Queue Name</th>
+    <th>Worker Host</th>
+    <th>Processed</th>
+    <th>Failed</th>
+    <th>Jobs</th>
+  </thead>
+  <tbody>
+    <% @queue_with_slices.each do |slice_info| %>
+      <tr>
+        <td>#<%= slice_info[0] %></td>
+        <td><%= slice_info[1] %></td>
+        <td><%= slice_info[2] %></td>
+        <td><%= slice_info[3] %></td>
+        <td><%= slice_info[4] %></td>
+        <td><%= slice_info[5] %></td>
+      </tr>
+    <% end %>
+    <tr></tr>
+  </tbody>
+</table>

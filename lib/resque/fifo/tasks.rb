@@ -1,6 +1,6 @@
 task "resque:fifo-worker" => :environment do
   prefix = ENV['PREFIX'] || 'fifo'
-  worker = Resque::Plugins::Fifo::Worker.new("#{prefix}-#{SecureRandom.hex(10)}")
+  worker = Resque::Plugins::Fifo::Worker.new
   worker.prepare
   worker.log "Starting worker #{self}"
   worker.work(ENV['INTERVAL'] || 5) # interval, will block
