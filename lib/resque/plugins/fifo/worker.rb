@@ -1,3 +1,5 @@
+require 'securerandom'
+
 module Resque
   module Plugins
     module Fifo
@@ -6,7 +8,7 @@ module Resque
 
         def queues=(queues)
           queues = queues.empty? ? (ENV["QUEUES"] || ENV['QUEUE']).to_s.split(',') : queues
-          main_queue_name = "#{manager.queue_prefix}-#{SecureRandom.hex(10)}"
+          @main_queue_name = "#{manager.queue_prefix}-#{SecureRandom.hex(10)}"
 
           @queues = ([main_queue_name] + queues).map { |queue| queue.to_s.strip }
           unless ['*', '?', '{', '}', '[', ']'].any? {|char| @queues.join.include?(char) }
@@ -20,20 +22,15 @@ module Resque
         def register_worker
           super
 
-          manager = Resque::Plugins::Fifo::Queue::Manager.new
-          if (!@queues.empty? && @queues.first.start_with?(manager.queue_prefix))
-            puts "Fifo Startup - Updating worker list"
-            manager.update_workers
-          end
+          puts "Fifo Startup - Updating worker list"
+          manager.update_workers
         end
 
         def unregister_worker
           super
 
-          if (!@queues.empty? && @queues.first.start_with?(manager.queue_prefix))
-            puts "Fifo Shutdown - Updating worker list"
-            manager.update_workers
-          end
+          puts "Fifo Shutdown - Updating worker list"
+          manager.update_workers
         end
 
         private

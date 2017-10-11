@@ -17,7 +17,11 @@ module Resque
           end
 
           def queue_prefix
-            "#{Resque::Plugins::Fifo::WORKER_QUEUE_NAMESPACE}-#{@queue}"
+            "#{Resque::Plugins::Fifo::WORKER_QUEUE_NAMESPACE}-#{@queue_prefix}"
+          end
+
+          def pending_queue_name
+            "#{queue_prefix}-pending"
           end
 
           def enqueue(key, klass, *args)
@@ -64,6 +68,18 @@ module Resque
             end
           end
 
+          def pretty_dump
+            slots = redis_client.lrange fifo_hash_table_name, 0, -1
+            slots.each_with_index.collect do |slot, index|
+              slice, queue = slot.split('#')
+              puts "Slice  ##{slice} -> #{queue}"
+            end
+          end
+
+          def peek_pending
+            Resque.peek(pending_queue_name, 0, 0)
+          end
+
           def dump_queue_names
             dump_dht.collect { |item| item[1] }
           end
@@ -80,6 +96,17 @@ module Resque
             query_available_queues.collect do |queue|
               [queue, Resque.peek(queue,0,0)]
             end.to_h
+          end
+
+          def pretty_dump_queues
+            slots = redis_client.lrange fifo_hash_table_name, 0, -1
+            slots.each_with_index.collect do |slot, index|
+              slice, queue = slot.split('#')
+              puts "#Slice #{slice}"
+
+              puts "#{Resque.peek(queue,0,0).to_s.gsub('},',"},\n")},"
+              puts "\n"
+            end
           end
 
           def dump_queues_sorted
@@ -109,7 +136,7 @@ module Resque
                 _slice, queue = slot.split('#')
                 log "queue #{queue} removed."
                 redlock.lock!("queue_lock-#{queue}", DLM_TTL) do |_lock_info|
-                  transfer_queues(queue, "#{queue_prefix}-pending")
+                  transfer_queues(queue, pending_queue_name)
                   redis_client.lrem fifo_hash_table_name, -1, slot
                 end
               end
@@ -123,7 +150,7 @@ module Resque
 
               log("reinserting items from pending")
 
-              reinsert_pending_items("#{queue_prefix}-pending")
+              reinsert_pending_items(pending_queue_name)
             end
           end
 
@@ -134,8 +161,12 @@ module Resque
           end
 
           def insert_slot(queue)
-            new_slice = XXhash.xxh32(rand(0..2**32).to_s) # generate random 32-bit integer
+            new_slice =  generate_new_slice # generate random 32-bit integer
             insert_queue_to_slice new_slice, queue
+          end
+
+          def generate_new_slice
+            XXhash.xxh32(rand(0..2**32).to_s)
           end
 
           def insert_queue_to_slice(slice, queue)
@@ -155,7 +186,7 @@ module Resque
                 redlock.lock!("queue_lock-#{prev_queue}", DLM_TTL) do |_lock_info|
                   pause_queues([prev_queue]) do
                     redis_client.linsert(fifo_hash_table_name, 'BEFORE', slot, queue_str)
-                    transfer_queues(prev_queue, "#{queue_prefix}-pending")
+                    transfer_queues(prev_queue, pending_queue_name)
                   end
                 end
                 return
@@ -166,7 +197,7 @@ module Resque
 
             _slot_slice, s_queue = slots.last.split('#')
             pause_queues([s_queue]) do
-              transfer_queues(s_queue, "#{queue_prefix}-pending")
+              transfer_queues(s_queue, pending_queue_name)
               redis_client.rpush(fifo_hash_table_name, queue_str)
             end
           end
@@ -220,7 +251,7 @@ module Resque
             index = compute_index(key)
             slots = redis_client.lrange fifo_hash_table_name, 0, -1
 
-            return "#{@queue_prefix}-pending" if slots.empty?
+            return pending_queue_name if slots.empty?
 
             slots.reverse.each do |slot|
               slice, queue = slot.split('#')
