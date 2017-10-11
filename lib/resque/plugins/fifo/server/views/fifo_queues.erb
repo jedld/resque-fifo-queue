@@ -23,7 +23,7 @@
 <h1 class='wi'> <%= @queue_with_slices.size %> worker instances</h1>
 <table>
   <thead>
-    <th>Slice</th>
+    <th>Slice (0 -- <%= 2**32 %>)</th>
     <th>Queue Name</th>
     <th>Worker Host</th>
     <th>Processed</th>
