@@ -43,20 +43,17 @@ module Resque
           end
 
           def enqueue(key, klass, *args)
-              queue = redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
+              queue = pending_queue_name
+              redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
                 if locked
                   if pending_total == 0
-                    compute_queue_name(key)
+                    queue = compute_queue_name(key)
                   else
-                    if redis_client.llen(fifo_hash_table_name) > 0
+                    if redis_client.llen() > 0
                       # pending queue still has items, summon a worker to fix this
-
                       Resque.push(:high, :class => Resque::Plugins::Fifo::Queue::DrainWorker)
                     end
-                      pending_queue_name
                   end
-                else
-                  pending_queue_name
                 end
               end
 
