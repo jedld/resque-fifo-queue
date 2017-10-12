@@ -169,34 +169,7 @@ module Resque
             # query removed workers
             redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
               if locked
-                available_queues = query_available_queues
-                slots = redis_client.lrange fifo_hash_table_name, 0, -1
-
-                current_queues = slots.map { |slot| slot.split('#')[1] }.uniq
-
-                # no change don't update
-                return if available_queues.sort == current_queues.sort
-
-
-                remove_list = slots.select do |slot|
-                  _slice, queue = slot.split('#')
-                  !available_queues.include?(queue)
-                end
-
-                remove_list.each do |slot|
-                  _slice, queue = slot.split('#')
-                  log "queue #{queue} removed."
-                  transfer_queues(queue, pending_queue_name)
-                  redis_client.lrem fifo_hash_table_name, -1, slot
-                  redis_client.del "queue-stats-#{queue}"
-                end
-
-                added_queues = available_queues.each do |queue|
-                  if !current_queues.include?(queue)
-                    insert_slot(queue)
-                    log "queue #{queue} was added."
-                  end
-                end
+                process_dht
 
                 log("reinserting items from pending")
 
@@ -208,6 +181,36 @@ module Resque
           end
 
           private
+
+          def process_dht
+            slots = redis_client.lrange fifo_hash_table_name, 0, -1
+
+            current_queues = slots.map { |slot| slot.split('#')[1] }.uniq
+
+            available_queues = query_available_queues
+            # no change don't update
+            return if available_queues.sort == current_queues.sort
+
+            remove_list = slots.select do |slot|
+              _slice, queue = slot.split('#')
+              !available_queues.include?(queue)
+            end
+
+            remove_list.each do |slot|
+              _slice, queue = slot.split('#')
+              log "queue #{queue} removed."
+              transfer_queues(queue, pending_queue_name)
+              redis_client.lrem fifo_hash_table_name, -1, slot
+              redis_client.del "queue-stats-#{queue}"
+            end
+
+            added_queues = available_queues.each do |queue|
+              if !current_queues.include?(queue)
+                insert_slot(queue)
+                log "queue #{queue} was added."
+              end
+            end
+          end
 
           def log(message)
             # puts message
