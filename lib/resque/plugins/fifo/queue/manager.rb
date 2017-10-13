@@ -49,9 +49,9 @@ module Resque
                   if pending_total == 0
                     queue = compute_queue_name(key)
                   else
-                    if redis_client.llen() > 0
+                    if redis_client.llen(pending_queue_name) > 0
                       # pending queue still has items, summon a worker to fix this
-                      Resque.push(:high, :class => Resque::Plugins::Fifo::Queue::DrainWorker)
+                      request_refresh
                     end
                   end
                 end
@@ -59,14 +59,19 @@ module Resque
 
               redis_client.incr "queue-stats-#{queue}"
               Resque.validate(klass, queue)
-              if Resque.inline?
+              if Resque.inline? && inline?
                 # Instantiating a Resque::Job and calling perform on it so callbacks run
                 # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
-                Resque::Job.new(:inline, {'class' => klass, 'args' => decode(encode(args)), 'fifo_key' => key}).perform
+                Resque::Job.new(:inline, {'class' => klass, 'args' => Resque.decode(Resque.encode(args)), 'fifo_key' => key}).perform
               else
                 Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
               end
 
+          end
+
+          # method for stubbing in tests
+          def inline?
+            Resque.inline?
           end
 
           def self.enqueue_to(key, klass, *args)
@@ -121,7 +126,7 @@ module Resque
 
           def worker_for_queue(queue_name)
             Resque.workers.collect do |worker|
-              w_queue_name = worker.queues.first
+              w_queue_name = worker.queues.select { |name| name.start_with?("#{queue_prefix}-") }.first
               return worker if w_queue_name == queue_name
             end.compact
             nil
@@ -178,6 +183,17 @@ module Resque
                 log("unable to lock DHT.")
               end
             end
+          end
+
+          def request_refresh
+            if Resque.inline?
+              # Instantiating a Resque::Job and calling perform on it so callbacks run
+              # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
+              Resque::Job.new(:inline, {'class' => Resque::Plugins::Fifo::Queue::DrainWorker, 'args' => []}).perform
+            else
+              Resque.push(:fifo_refresh, :class => Resque::Plugins::Fifo::Queue::DrainWorker.to_s, :args => [])
+            end
+
           end
 
           private
@@ -292,11 +308,11 @@ module Resque
           end
 
           def redis_client
-            @redis ||= Resque.redis
+            Resque.redis
           end
 
           def redlock
-            Redlock::Client.new [$redis], {
+              Redlock::Client.new [redis_client.redis], {
               retry_count:   30,
               retry_delay:   1000, # milliseconds
               retry_jitter:  100,  # milliseconds
@@ -310,8 +326,7 @@ module Resque
 
           def query_available_queues
             Resque.workers.collect do |worker|
-              queue_name = worker.queues.first
-              queue_name.start_with?("#{queue_prefix}-") ? queue_name : nil
+              worker.queues.select { |name| name.start_with?("#{queue_prefix}-") }.first
             end.compact
           end
         end

@@ -11,8 +11,8 @@ module Resque
           queues = queues.empty? ? (ENV["QUEUES"] || ENV['QUEUE']).to_s.split(',') : queues
           @main_queue_name = "#{manager.queue_prefix}-#{SecureRandom.hex(10)}"
 
-          @queues = ([main_queue_name] + queues).map { |queue| queue.to_s.strip }
-          unless ['*', '?', '{', '}', '[', ']'].any? {|char| @queues.join.include?(char) }
+          @queues = ([:fifo_refresh, main_queue_name] + queues).map { |queue| queue.to_s.strip }
+          unless ['*', '?', '{', '}', '[', ']'].any? { |char| @queues.join.include?(char) }
             @static_queues = @queues.flatten.uniq
           end
           validate_queues
@@ -24,15 +24,14 @@ module Resque
           super
 
           puts "Fifo Startup - Updating worker list"
-          sleep UPDATE_DELAY
-          manager.update_workers
+          manager.request_refresh
         end
 
         def unregister_worker(exception = nil)
           super(exception)
 
           puts "Fifo Shutdown - Updating worker list"
-          manager.update_workers
+          manager.request_refresh
         end
 
         private

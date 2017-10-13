@@ -11,6 +11,9 @@ end
 RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
   before do
     srand(67809)
+
+    allow_any_instance_of(Resque::Plugins::Fifo::Queue::Manager).to receive(:inline?).and_return(false)
+    allow(Resque).to receive(:inline?).and_return(true)
   end
 
   it "has a version number" do

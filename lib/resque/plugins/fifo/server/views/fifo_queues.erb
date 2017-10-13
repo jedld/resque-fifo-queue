@@ -1,4 +1,9 @@
 <h1>Resque FIFO Managed Queues</h1>
+<% if @refresh_requested %>
+<p class="intro">
+  Updating worker list... Refresh to view updates.
+</p>
+<% end %>
 <p class="intro">
   This page displays statistics about available FIFO Managed Queues and its partitioning information.
 </p>
@@ -21,6 +26,9 @@
   </tbody>
 </table>
 <h1 class='wi'> <%= @queue_with_slices.size %> worker instances</h1>
+<form method="POST" action="<%=u "/request_update" %>" >
+  <input type='submit' name='' value='Request Force Update' />
+</form>
 <table>
   <thead>
     <th>Slice (0 -- <%= 2**32 %>)</th>
@@ -42,3 +50,5 @@
     <tr></tr>
   </tbody>
 </table>
+
+<%= poll %>
