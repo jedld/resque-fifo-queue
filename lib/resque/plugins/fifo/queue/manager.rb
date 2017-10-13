@@ -174,11 +174,18 @@ module Resque
             # query removed workers
             redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
               if locked
+                start_timestamp = redis_client.get "fifo_update_timestamp-#{queue_prefix}"
+
                 process_dht
-
                 log("reinserting items from pending")
-
                 reinsert_pending_items(pending_queue_name)
+
+                # check if something tried to request an update, if so we requie again
+                current_timestamp = redis_client.get "fifo_update_timestamp-#{queue_prefix}"
+                
+                if start_timestamp != current_timestamp
+                  request_refresh
+                end
               else
                 log("unable to lock DHT.")
               end
@@ -191,6 +198,7 @@ module Resque
               # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
               Resque::Job.new(:inline, {'class' => Resque::Plugins::Fifo::Queue::DrainWorker, 'args' => []}).perform
             else
+              redis_client.set "fifo_update_timestamp-#{queue_prefix}", Time.now.to_s
               Resque.push(:fifo_refresh, :class => Resque::Plugins::Fifo::Queue::DrainWorker.to_s, :args => [])
             end
 

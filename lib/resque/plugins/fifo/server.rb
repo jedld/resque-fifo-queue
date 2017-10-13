@@ -55,7 +55,7 @@ module Resque
               @manager.request_refresh
               @refresh_requested = true
               @queue_with_slices = @manager.dump_queues_with_slices
-              redirect '/fifo_queues'
+              redirect '/resque/fifo_queues'
             end
             # We have little choice in using this funky name - Resque
             # already has a "Stats" tab, and it doesn't like
