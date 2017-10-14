@@ -31,9 +31,18 @@ rake resque:fifo-worker
 rake resque:fifo-workers
 ```
 
+Workers will assign their own queue names which is automatically managed by the sharding algorithm.
+
 Supports the same parameters as resque:work but creates additional queues behind the scenes
 to support fifo queues.
 
+fifo workers can also double duty as standard resque worker in order to simplify resource sharing:
+
+```
+QUEUE=high rake resque:fifo-worker
+```
+
+Aside from being a worker that processes jobs from the fifo queue it will process jobs from the high queue as well.
 
 Sample Usage
 ------------
@@ -48,10 +57,16 @@ class SampleJob
 end
 
 shared_key = "user_00001"
+
+# These async jobs will be guaranteed to run one after another in a single worker
+
 Resque::Plugins::Fifo::Queue::Manager.enqueue_to(shared_key, SampleJob, "hello")
+Resque::Plugins::Fifo::Queue::Manager.enqueue_to(shared_key, SampleJob, "hello1")
+
+
 ```
 
-## Resque web
+## Resque web extensions
 
 This gem adds a FIFO_queue tab under resque web where you can see information about
 workers and queues used. This can be accessed via:
