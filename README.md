@@ -1,12 +1,10 @@
 # Resque::Fifo::Queue
 
-Implementation of a sharded First-in First-out queue using Redis.
+Implementation of a sharded First-in First-out queue using Redis and Resque.
 
-This gem unables you to guarantee in-order job processing based on a shared key. Useful for business
-requirements that are race-condition prone. Or for jobs that require streaming with chronological accuracy.
-Sharding is automatically managed depending on the number of workers available. Durability is guaranteed
-with failover resharding using a consitent hash. Built on the reliability of resque and is pure ruby
-which simplifies deployment if you are already using resque with ruby on rails.
+This gem unables you to guarantee in-order job processing based on a shared key. Useful for business requirements that are race-condition prone. Or for a set of related jobs that require preservation of chronological order.
+
+Sharding is automatically managed depending on the number of workers available. Durability is guaranteed with failover resharding using a consitent hash. Built on the reliability of resque and is pure ruby which simplifies deployment if you are already using resque with ruby on rails.
 
 ## Installation
 
