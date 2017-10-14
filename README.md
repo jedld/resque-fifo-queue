@@ -2,7 +2,7 @@
 
 Implementation of a sharded First-in First-out queue using Redis and Resque.
 
-This gem unables you to guarantee in-order job processing based on a shared key. Useful for business requirements that are race-condition prone. Or for a set of related jobs that require preservation of chronological order.
+This gem unables you to guarantee in-order job processing based on a shard key. Useful for business requirements that are race-condition prone. Or for a set of related jobs that require preservation of chronological order.
 
 Sharding is automatically managed depending on the number of workers available. Durability is guaranteed with failover resharding using a consitent hash. Built on the reliability of resque and is pure ruby which simplifies deployment if you are already using resque with ruby on rails.
 
@@ -56,12 +56,12 @@ class SampleJob
   end
 end
 
-shared_key = "user_00001"
+shard_key = "user_00001"
 
 # These async jobs will be guaranteed to run one after another in a single worker
 
-Resque::Plugins::Fifo::Queue::Manager.enqueue_to(shared_key, SampleJob, "hello")
-Resque::Plugins::Fifo::Queue::Manager.enqueue_to(shared_key, SampleJob, "hello1")
+Resque::Plugins::Fifo::Queue::Manager.enqueue_to(shard_key, SampleJob, "hello")
+Resque::Plugins::Fifo::Queue::Manager.enqueue_to(shard_key, SampleJob, "hello1")
 
 
 ```
