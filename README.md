@@ -1,8 +1,12 @@
 # Resque::Fifo::Queue
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/resque/fifo/queue`. To experiment with that code, run `bin/console` for an interactive prompt.
+Implementation of a sharded First-in First-out queue using Redis.
 
-TODO: Delete this and the text above, and describe your gem
+This gem unables you to guarantee in-order job processing based on a shared key. Useful for business
+requirements that are race-condition prone. Or for jobs that require streaming with chronological accuracy.
+Sharding is automatically managed depending on the number of workers available. Durability is guaranteed
+with failover resharding using a consitent hash. Built on the reliability of resque and is pure ruby
+which simplifies deployment if you are already using resque with ruby on rails.
 
 ## Installation
 
@@ -22,7 +26,39 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+This adds a new task, to run fifo queues:
+
+```
+rake resque:fifo-worker
+rake resque:fifo-workers
+```
+
+Supports the same parameters as resque:work but creates additional queues behind the scenes
+to support fifo queues.
+
+
+Sample Usage
+------------
+
+To start a job using a fifo strategy:
+
+```ruby
+class SampleJob
+  def self.perform(*args)
+    # run your resque job here
+  end
+end
+
+shared_key = "user_00001"
+Resque::Plugins::Fifo::Queue::Manager.enqueue_to(shared_key, SampleJob, "hello")
+```
+
+## Resque web
+
+This gem adds a FIFO_queue tab under resque web where you can see information about
+workers and queues used. This can be accessed via:
+
+http://localhost:3000/resque/fifo_queue
 
 ## Development
 
@@ -38,4 +74,3 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/[USERN
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
-
