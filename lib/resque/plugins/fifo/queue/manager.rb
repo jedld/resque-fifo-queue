@@ -177,12 +177,13 @@ module Resque
                 start_timestamp = redis_client.get "fifo_update_timestamp-#{queue_prefix}"
 
                 process_dht
+                cleanup_queues
                 log("reinserting items from pending")
                 reinsert_pending_items(pending_queue_name)
 
                 # check if something tried to request an update, if so we requie again
                 current_timestamp = redis_client.get "fifo_update_timestamp-#{queue_prefix}"
-                
+
                 if start_timestamp != current_timestamp
                   request_refresh
                 end
@@ -205,6 +206,23 @@ module Resque
           end
 
           private
+
+          def cleanup_queues
+            current_queues = dump_queue_names
+            Resque.all_queues.each do |queue|
+              if queue.start_with?(queue_prefix)
+                next if current_queues.include?(queue)
+
+                if redis_client.llen("queue:#{queue}") > 0
+                  log("transfer non empty orphaned queue items to pending")
+                  transfer_queues(queue, pending_queue_name)
+                end
+
+                log("remove orphaned queue #{queue}.")
+                Resque.remove_queue(queue)
+              end
+            end
+          end
 
           def process_dht
             slots = redis_client.lrange fifo_hash_table_name, 0, -1
@@ -237,7 +255,7 @@ module Resque
           end
 
           def log(message)
-            # puts message
+            puts message
           end
 
           def insert_slot(queue)

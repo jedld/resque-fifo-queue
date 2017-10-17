@@ -314,10 +314,12 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
           context "queue deletion" do
             it "reassigns queues" do
               queue_names = manager.dump_queue_names
+              Resque.push("#{manager.queue_prefix}-orphaned-queue", {"class" => "TestJob", "args" =>[2], "fifo_key" => "orphan1"})
 
               worker = manager.worker_for_queue(queue_names[0])
               worker.unregister_worker
               manager.update_workers
+
 
               expect(manager.dump_queues_sorted).to eq([
                 #Slice 1602258586
@@ -348,6 +350,7 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key27"},
                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key28"},
                  {"class"=>"TestJob", "args"=>[2], "fifo_key"=>"key14"},
+                 {"class"=>"TestJob", "args"=>[2], "fifo_key"=>"orphan1"},
                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key4"},
                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key5"},
                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key6"},
@@ -357,6 +360,8 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key25"},
                  {"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key29"}],
               ])
+
+              expect(Resque.all_queues.sort).to eq(manager.dump_queue_names.sort)
             end
           end
         end
