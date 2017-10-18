@@ -3,7 +3,7 @@ require 'resque/fifo/constants'
 require "redis"
 require "redlock"
 require 'xxhash'
-require 'resque-loner'
+require 'resque_solo'
 require "resque/plugins/fifo/queue/version"
 require "resque/plugins/fifo/server"
 require "resque/plugins/fifo/extensions"
