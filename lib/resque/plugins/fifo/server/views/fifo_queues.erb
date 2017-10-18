@@ -34,17 +34,23 @@
     <th>Slice (0 -- <%= 2**32 %>)</th>
     <th>Queue Name</th>
     <th>Worker Host</th>
-    <th>Processed</th>
-    <th>Jobs</th>
+    <th>Status</th>
+    <th>Started</th>
+    <th>Heartbeat</th>
+    <th>Assigned</th>
+    <th>Queued</th>
   </thead>
   <tbody>
     <% @queue_with_slices.each do |slice_info| %>
       <tr>
         <td>#<%= slice_info[0] %></td>
-        <td><%= slice_info[1] %></td>
-        <td><%= slice_info[2] %></td>
-        <td><%= slice_info[3] %></td>
+        <td><a class="queue" href="<%= u "queues/#{slice_info[1]}" %>"><%= slice_info[1] %></a></td>
+        <td><a href="<%=u "workers/#{slice_info[2]}"%>"><%= slice_info[2] %>:<%= slice_info[3] %></a></td>
         <td><%= slice_info[4] %></td>
+        <td><%= slice_info[5] %></td>
+        <td><%= slice_info[6] %></td>
+        <td><%= slice_info[7] %></td>
+        <td><%= slice_info[8] %></td>
       </tr>
     <% end %>
     <tr></tr>

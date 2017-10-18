@@ -43,30 +43,18 @@ module Resque
           end
 
           def enqueue(key, klass, *args)
-              queue = pending_queue_name
-              redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
-                if locked
-                  if pending_total == 0
-                    queue = compute_queue_name(key)
-                  else
-                    if redis_client.llen(pending_queue_name) > 0
-                      # pending queue still has items, summon a worker to fix this
-                      request_refresh
-                    end
-                  end
-                end
-              end
+            queue = pending_queue_name
+            queue = compute_queue_name(key)
 
-              redis_client.incr "queue-stats-#{queue}"
-              Resque.validate(klass, queue)
-              if Resque.inline? && inline?
-                # Instantiating a Resque::Job and calling perform on it so callbacks run
-                # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
-                Resque::Job.new(:inline, {'class' => klass, 'args' => Resque.decode(Resque.encode(args)), 'fifo_key' => key}).perform
-              else
-                Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
-              end
-
+            redis_client.incr "queue-stats-#{queue}"
+            Resque.validate(klass, queue)
+            if Resque.inline? && inline?
+              # Instantiating a Resque::Job and calling perform on it so callbacks run
+              # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
+              Resque::Job.new(:inline, {'class' => klass, 'args' => Resque.decode(Resque.encode(args)), 'fifo_key' => key}).perform
+            else
+              Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
+            end
           end
 
           # method for stubbing in tests
@@ -154,7 +142,22 @@ module Resque
             slots.collect do |slot, index|
               slice, queue = slot.split('#')
               worker = worker_for_queue(queue)
-              [slice, queue, worker ? worker.hostname : '?', get_processed_count(queue), Resque.peek(queue,0,0).size ]
+
+              hostname = '?'
+              status = '?'
+              pid = '?'
+              started = '?'
+              heartbeat = '?'
+
+              if worker
+                hostname = worker.hostname
+                status = worker.paused? ? 'paused' : worker.state.to_s
+                pid = worker.pid
+                started = worker.started
+                heartbeat = worker.heartbeat
+              end
+
+              [slice, queue, hostname, pid, status, started, heartbeat, get_processed_count(queue), Resque.peek(queue,0,0).size ]
             end
           end
 
