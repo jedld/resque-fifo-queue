@@ -43,7 +43,6 @@ module Resque
           end
 
           def enqueue(key, klass, *args)
-            queue = pending_queue_name
             queue = compute_queue_name(key)
 
             redis_client.incr "queue-stats-#{queue}"
