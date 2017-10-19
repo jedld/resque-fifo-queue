@@ -45,10 +45,6 @@ module Resque
           def enqueue(key, klass, *args)
             queue = compute_queue_name(key)
 
-            if pending_total > 0
-              request_refresh
-            end
-
             redis_client.incr "queue-stats-#{queue}"
             Resque.validate(klass, queue)
             if Resque.inline? && inline?
