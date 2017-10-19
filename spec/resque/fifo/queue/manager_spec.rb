@@ -315,7 +315,7 @@ RSpec.describe Resque::Plugins::Fifo::Queue::Manager do
             it "reassigns queues" do
               queue_names = manager.dump_queue_names
               Resque.push("#{manager.queue_prefix}-orphaned-queue", {"class" => "TestJob", "args" =>[2], "fifo_key" => "orphan1"})
-
+              expect(manager.orphaned_queues).to eq(["fifo-managed-queue-fifo-orphaned-queue"])
               worker = manager.worker_for_queue(queue_names[0])
               worker.unregister_worker
               manager.update_workers

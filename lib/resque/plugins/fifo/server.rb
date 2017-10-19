@@ -32,6 +32,7 @@ module Resque
               @refresh_requested = false
               @manager = Resque::Plugins::Fifo::Queue::Manager.new
               @queue_with_slices = @manager.dump_queues_with_slices
+              @orphaned_queues = @manager.orphaned_queues
               show_page('fifo_queues.erb')
             end
 
@@ -39,6 +40,7 @@ module Resque
               @polling = true
               @refresh_requested = false
               @manager = Resque::Plugins::Fifo::Queue::Manager.new
+              @orphaned_queues = @manager.orphaned_queues
               @queue_with_slices = @manager.dump_queues_with_slices
               show_page('fifo_queues.erb', false)
             end

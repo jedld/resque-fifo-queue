@@ -45,6 +45,10 @@ module Resque
           def enqueue(key, klass, *args)
             queue = compute_queue_name(key)
 
+            if pending_total > 0
+              request_refresh
+            end
+
             redis_client.incr "queue-stats-#{queue}"
             Resque.validate(klass, queue)
             if Resque.inline? && inline?
@@ -205,6 +209,13 @@ module Resque
               Resque.push(:fifo_refresh, :class => Resque::Plugins::Fifo::Queue::DrainWorker.to_s, :args => [])
             end
 
+          end
+
+          def orphaned_queues
+            current_queues = dump_queue_names
+            Resque.all_queues.reject do |queue|
+              !queue.start_with?(queue_prefix) || current_queues.include?(queue)
+            end
           end
 
           private

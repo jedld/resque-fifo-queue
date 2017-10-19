@@ -21,7 +21,7 @@
   </thead>
   <tbody>
     <tr>
-      <td><%= @manager.pending_queue_name %></td>
+      <td><a class="queue" href="<%= u "queues/#{@manager.pending_queue_name}" %>"><%= @manager.pending_queue_name %></a></td>
       <td><%= @manager.pending_total %></td>
   </tbody>
 </table>
@@ -56,5 +56,20 @@
     <tr></tr>
   </tbody>
 </table>
-
+<% if @orphaned_queues.size > 0 %>
+  <h1 class="wi">Orphaned Queues</h1>
+  <table>
+    <thead>
+      <th>Queue Name</th>
+    </thead>
+    <tbody>
+      <% @orphaned_queues.each do |queue| %>
+        <tr>
+          <td><a class="queue" href="<%= u "queues/#{queue}" %>"><%= queue %></a></td>
+        </tr>
+      <% end %>
+      <tr></tr>
+    </tbody>
+  </table>
+<% end %>
 <%= poll %>
