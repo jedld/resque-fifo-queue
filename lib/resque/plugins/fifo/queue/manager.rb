@@ -362,7 +362,7 @@ module Resque
           def query_available_queues
             expired_workers = Resque::Worker.all_workers_with_expired_heartbeats
 
-            (Resque.workers - expired_workers).collect do |worker|
+            Resque.workers.reject { |w| expired_workers.include?(w) }.collect do |worker|
               worker.queues.select { |name| name.start_with?("#{queue_prefix}-") }.first
             end.compact
           end
