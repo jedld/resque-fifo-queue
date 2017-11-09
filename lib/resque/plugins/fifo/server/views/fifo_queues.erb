@@ -35,14 +35,9 @@
       <td>Average wait time in ms, before a job gets processed</td>
     </tr>
     <tr>
-      <td>Avg Job Delay</td>
-      <td><%= @manager.get_stats_avg_delay %></td>
-      <td>Average wait time in ms, before a job gets processed</td>
-    </tr>
-    <tr>
       <td>Total DHT rehash</td>
       <td><%= @manager.dht_times_rehashed %></td>
-      <td>Total number of times the hash table was rehased</td>
+      <td>Total number of times the hash table was rehashed</td>
     </tr>
     <tr>
       <td>Avg DHT recalculate time</td>
@@ -52,7 +47,7 @@
   </tbody>
 </table>
 <h1>Pending Queue Information</h1>
-<p> This queue contains, jobs that are to be resharded</p>
+<p> This queue contains jobs that are to be resharded</p>
 <table>
   <thead>
     <th>Queue Name</th>
