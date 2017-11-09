@@ -25,13 +25,13 @@ module Resque
             log_with_severity :debug, "Checking #{queue}"
             if job = Resque.reserve(queue)
               log_with_severity :debug, "Found job on #{queue}"
-    
+
               if job.payload['enqueue_ts']
-                delay_ts = Time.now.to_i - job.payload['enqueue_ts']
+                delay_ts = Time.now.to_i - job.payload['enqueue_ts'].to_i
                 max_delay = Resque.redis.get("queue-stats-max-delay") || 0
-                Resque.redis.incr("fifo-stats-accumulated-delay", delay_ts)
+                Resque.redis.incrby("fifo-stats-accumulated-delay", delay_ts)
                 Resque.redis.incr("fifo-stats-accumulated-count")
-                if (delay_ts > max_delay)
+                if (delay_ts > max_delay.to_i)
                   Resque.redis.set("fifo-stats-max-delay", max_delay)
                 end
               end
