@@ -28,7 +28,7 @@ module Resque
 
               if job.payload['enqueue_ts']
                 delay_ts = Time.now.to_i - job.payload['enqueue_ts'].to_i
-                max_delay = Resque.redis.get("queue-stats-max-delay") || 0
+                max_delay = Resque.redis.get("fifo-stats-max-delay") || 0
                 Resque.redis.incrby("fifo-stats-accumulated-delay", delay_ts)
                 Resque.redis.incr("fifo-stats-accumulated-count")
                 if (delay_ts > max_delay.to_i)
