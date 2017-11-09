@@ -12,6 +12,42 @@
   <input id="key" type='text' name='key'/>
   <input type='submit' name='' value='Find Shard' />
 </form>
+<h1>Perfomance Statistics</h1>
+<p>Contains statistics related to the performance of the FIFO queues</p>
+<table>
+  <thead>
+    <th>Name</th>
+    <th>Value</th>
+    <th>Description</th>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Max Job Delay</td>
+      <td><%= @manager.get_stats_max_delay %></td>
+      <td>The worst case in ms that a job had waited before it gets processed.</td>
+    </tr>
+    <tr>
+      <td>Avg Job Delay</td>
+      <td><%= @manager.get_stats_avg_delay %></td>
+      <td>Average wait time in ms, before a job gets processed</td>
+    </tr>
+    <tr>
+      <td>Avg Job Delay</td>
+      <td><%= @manager.get_stats_avg_delay %></td>
+      <td>Average wait time in ms, before a job gets processed</td>
+    </tr>
+    <tr>
+      <td>Total DHT rehash</td>
+      <td><%= @manager.dht_times_rehashed %></td>
+      <td>Total number of times the hash table was rehased</td>
+    </tr>
+    <tr>
+      <td>Avg DHT recalculate time</td>
+      <td><%= @manager.get_stats_avg_dht_recalc %></td>
+      <td>Average time it takes the system to rehash the DHT</td>
+    </tr>
+  </tbody>
+</table>
 <h1>Pending Queue Information</h1>
 <p> This queue contains, jobs that are to be resharded</p>
 <table>

@@ -18,6 +18,34 @@ module Resque
           validate_queues
         end
 
+        # Attempts to grab a job off one of the provided queues. Returns
+        # nil if no job can be found.
+        def reserve
+          queues.each do |queue|
+            log_with_severity :debug, "Checking #{queue}"
+            if job = Resque.reserve(queue)
+              log_with_severity :debug, "Found job on #{queue}"
+
+              if job['enqueue_ts']
+                delay_ts = Time.now.to_i - job['enqueue_ts']
+                max_delay = redis_client.get("queue-stats-max-delay") || 0
+                redis_client.incr("queue-stats-accumulated-delay", delay_ts)
+                redis_client.incr("queue-stats-accumulated-count")
+                if (delay_ts > max_delay)
+                  redis_client.set("queue-stats-max-delay", max_delay)
+                end
+              end
+              return job
+            end
+          end
+
+          nil
+        rescue Exception => e
+          log_with_severity :error, "Error reserving job: #{e.inspect}"
+          log_with_severity :error, e.backtrace.join("\n")
+          raise e
+        end
+
         # Registers ourself as a worker. Useful when entering the worker
         # lifecycle on startup.
         def register_worker

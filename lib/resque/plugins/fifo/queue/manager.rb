@@ -50,15 +50,63 @@ module Resque
             if Resque.inline? && inline?
               # Instantiating a Resque::Job and calling perform on it so callbacks run
               # decode(encode(args)) to ensure that args are normalized in the same manner as a non-inline job
-              Resque::Job.new(:inline, {'class' => klass, 'args' => Resque.decode(Resque.encode(args)), 'fifo_key' => key}).perform
+              Resque::Job.new(:inline, {'class' => klass, 'args' => Resque.decode(Resque.encode(args)), 'fifo_key' => key, 'enqueue_ts' => 0}).perform
             else
-              Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key)
+              Resque.push(queue, :class => klass.to_s, :args => args, fifo_key: key, :enqueue_ts => Time.now.to_i)
             end
           end
 
           # method for stubbing in tests
           def inline?
             Resque.inline?
+          end
+
+          def clear_stats
+            redis_client.del "fifo-stats-max-delay"
+            redis_client.del "fifo-stats-accumulated-delay"
+            redis_client.del "fifo-stats-accumulated-count"
+            redis_client.del "fifo-stats-dht-rehash"
+            redis_client.del "fifo-stats-accumulated-recalc-time"
+            redis_client.del "fifo-stats-accumulated-recalc-count"
+
+            slots = redis_client.lrange fifo_hash_table_name, 0, -1
+            slots.each_with_index.collect do |slot, index|
+              slice, queue = slot.split('#')
+              redis_client.del "queue-stats-#{queue}"
+            end
+          end
+
+          def get_stats_max_delay
+            redis_client.get("fifo-stats-max-delay") || 0
+          end
+
+          def get_stats_avg_dht_recalc
+            accumulated_delay = redis_client.get("fifo-stats-accumulated-recalc-time") || 0
+            total_items = redis_client.get("fifo-stats-accumulated-recalc-count") || 0
+            return 0 if total_items == 0
+
+            return accumulated_delay.to_f / total_items.to_f
+          end
+
+          def get_stats_avg_delay
+            accumulated_delay = redis_client.get("fifo-stats-accumulated-delay") || 0
+            total_items = redis_client.get("fifo-stats-accumulated-count") || 0
+            return 0 if total_items == 0
+
+            return accumulated_delay.to_f / total_items.to_f
+          end
+
+          def dht_times_rehashed
+            redis_client.get("fifo-stats-dht-rehash") || 0
+          end
+
+          def all_stats
+            {
+              dht_times_rehashed: dht_times_rehashed,
+              avg_delay: get_stats_avg_delay,
+              avg_dht_recalc: get_stats_avg_dht_recalc,
+              max_delay: get_stats_max_delay
+            }
           end
 
           def self.enqueue_to(key, klass, *args)
@@ -174,6 +222,7 @@ module Resque
 
           def update_workers
             # query removed workers
+            start_time = Time.now.to_i
             redlock.lock("fifo_queue_lock-#{queue_prefix}", DLM_TTL) do |locked|
               if locked
                 start_timestamp = redis_client.get "fifo_update_timestamp-#{queue_prefix}"
@@ -193,6 +242,11 @@ module Resque
                 log("unable to lock DHT.")
               end
             end
+
+            end_time = Time.now.to_i
+
+            redis_client.set("fifo-stats-accumulated-recalc-time", end_time - start_time)
+            redis_client.incr "fifo-stats-accumulated-recalc-count"
           end
 
           def request_refresh
@@ -242,6 +296,8 @@ module Resque
             # no change don't update
             return if available_queues.sort == current_queues.sort
 
+            redis_client.incr "fifo-stats-dht-rehash"
+
             remove_list = slots.select do |slot|
               _slice, queue = slot.split('#')
               !available_queues.include?(queue)
@@ -250,8 +306,8 @@ module Resque
             remove_list.each do |slot|
               _slice, queue = slot.split('#')
               log "queue #{queue} removed."
-              transfer_queues(queue, pending_queue_name)
               redis_client.lrem fifo_hash_table_name, -1, slot
+              transfer_queues(queue, pending_queue_name)
               redis_client.del "queue-stats-#{queue}"
             end
 

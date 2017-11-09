@@ -4,6 +4,14 @@ require "pry-byebug"
 RSpec.describe Resque::Plugins::Fifo::Queue::DrainWorker do
   let(:manager) { Resque::Plugins::Fifo::Queue::Manager.new }
 
+  around(:each) do |example|
+    @timestamp = Time.now
+    @timestamp_ts = @timestamp.to_i
+    Timecop.freeze(@timestamp) do
+      example.run
+    end
+  end
+
   describe "#perform" do
     before do
       srand(67809)
@@ -24,9 +32,9 @@ RSpec.describe Resque::Plugins::Fifo::Queue::DrainWorker do
     it "runs the refresh" do
       described_class.perform
       expect(manager.dump_queues_sorted).to eq(
-        [[{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2"}],
-         [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0"}],
-         [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1"}]]
+        [[{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key2", "enqueue_ts" => @timestamp_ts}],
+         [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key0", "enqueue_ts" => @timestamp_ts}],
+         [{"class"=>"TestJob", "args"=>[1], "fifo_key"=>"key1", "enqueue_ts" => @timestamp_ts}]]
       )
     end
   end

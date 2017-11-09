@@ -1,5 +1,6 @@
 require "bundler/setup"
 require "resque/fifo/queue"
+require "timecop"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

@@ -59,6 +59,14 @@ module Resque
               @queue_with_slices = @manager.dump_queues_with_slices
               redirect '/resque/fifo_queues'
             end
+
+            app.post '/clear_stats' do
+              @manager = Resque::Plugins::Fifo::Queue::Manager.new
+              @manager.clear_stats
+              @refresh_requested = true
+              @queue_with_slices = @manager.dump_queues_with_slices
+              redirect '/resque/fifo_queues'
+            end
             # We have little choice in using this funky name - Resque
             # already has a "Stats" tab, and it doesn't like
             # tab names with spaces in it (it translates the url as job%20stats)
