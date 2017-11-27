@@ -74,18 +74,11 @@ workers and queues used. This can be accessed via:
 
 http://localhost:3000/resque/fifo_queue
 
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
-
 ## Ensuring workers are updated
 
-Since only one worker is assigned to a particular shard, it is important to make sure a worker is running. The
-fifo shard table is updated everytime a worker is started or stopped properly (using kill -S QUITE).
-
-Though for some cases a scheduled task is necessary to make sure the worker list is constantly updated:
+Since only one worker is assigned to a particular shard, it is important to make sure a worker is running otherwise jobs will
+pile up for that shard. The shard table is updated everytime a worker is started or stopped properly (using kill -S QUITE). However
+in exceptional cases (workers are forced killed for example), a shard may be left without a worker. In cases like this a scheduled task is necessary to make sure the worker list is constantly updated:
 
 ```yaml
 # resque_schedule.yml
@@ -95,6 +88,21 @@ auto_refresh_fifo_queues:
   queue: fifo_refresh
   description: 'Check if fifo workers are still valid and update worker table'
 ```
+
+Do make sure to add the resque-scheduler as well https://github.com/resque/resque-scheduler
+
+## Related Projects
+
+If you need something more performant and robust, Apache Kafka is still the way to go. Though you need a couple more libraries
+to set it up with rails.
+
+https://github.com/karafka/karafka
+
+## Development
+
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+
+To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
 ## Contributing
 
