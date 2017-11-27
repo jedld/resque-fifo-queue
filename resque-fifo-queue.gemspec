@@ -36,7 +36,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "timecop"
   spec.add_development_dependency "pry-byebug"
   spec.add_dependency "redis"
-  spec.add_dependency "resque"
+  spec.add_dependency "resque", "~> 1.27"
   spec.add_dependency "resque-scheduler"
   spec.add_dependency "resque-pause"
   spec.add_dependency "resque_solo"
