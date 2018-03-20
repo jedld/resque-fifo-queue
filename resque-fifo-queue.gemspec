@@ -39,7 +39,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "resque", "~> 1.27"
   spec.add_dependency "resque-scheduler"
   spec.add_dependency "resque-pause"
-  spec.add_dependency "resque_solo"
   spec.add_dependency "xxhash"
   spec.add_dependency "redlock"
 end

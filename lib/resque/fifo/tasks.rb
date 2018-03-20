@@ -1,6 +1,7 @@
-require 'resque/fifo/queue'
+task "resque:fifo-worker" => [ "resque:preload", "resque:setup" ] do
+  require 'resque'
+  require 'resque/fifo/queue'
 
-task "resque:fifo-worker" => :environment do
   prefix = ENV['PREFIX'] || 'fifo'
   worker = Resque::Plugins::Fifo::Worker.new
   worker.prepare
@@ -8,7 +9,7 @@ task "resque:fifo-worker" => :environment do
   worker.work(ENV['INTERVAL'] || 5) # interval, will block
 end
 
-task "resque:fifo-workers" => :environment do
+task "resque:fifo-workers" do
   threads = []
 
   if ENV['COUNT'].to_i < 1
